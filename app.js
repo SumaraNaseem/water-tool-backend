@@ -52,6 +52,7 @@ app.get('/', (req, res) => {
     success: true,
     message: 'Welcome to Water Tools Backend API',
     version: '1.0.0',
+    database: 'MongoDB',
     endpoints: {
       auth: {
         register: 'POST /api/auth/register',

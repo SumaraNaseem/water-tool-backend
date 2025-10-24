@@ -1,345 +1,176 @@
 # Water Tools Backend API
 
-A Node.js backend API with Express.js framework featuring user authentication and authorization.
+A complete authentication system for water management tools with registration and login functionality.
 
-## Project Structure
+## 🚀 Features
 
-```
-water-tools-backend/
-├── models/
-│   └── User.js                 # User model with Mongoose schema
-├── middleware/
-│   └── auth.js                 # JWT authentication middleware
-├── routes/
-│   └── auth.js                 # Authentication routes
-├── app.js                      # Main application file
-├── package.json                # Project dependencies and scripts
-└── README.md                   # This file
-```
+- **User Registration** - Create new user accounts
+- **User Login** - Secure authentication with JWT tokens
+- **Profile Management** - View and update user profiles
+- **Password Security** - Bcrypt hashing for secure password storage
+- **JWT Authentication** - Secure token-based authentication
+- **MongoDB Integration** - Persistent data storage
+- **CORS Support** - Cross-origin resource sharing for frontend integration
 
-## Features
+## 📋 API Endpoints
 
-- **Express.js** web framework
-- **MongoDB** database with Mongoose ODM
-- **JWT Authentication** with secure token handling
-- **Password Hashing** with bcryptjs
-- **Security** middleware (Helmet, CORS)
-- **Request logging** with Morgan
-- **Input validation** and error handling
-- **User roles** (user, admin)
+### Authentication Routes (`/api/auth`)
 
-## Installation
+| Method | Endpoint | Description | Access |
+|--------|----------|-------------|---------|
+| POST | `/register` | Register a new user | Public |
+| POST | `/login` | Login user | Public |
+| GET | `/me` | Get current user profile | Private |
+| PUT | `/profile` | Update user profile | Private |
+| POST | `/logout` | Logout user | Private |
 
-1. Clone or download the project
-2. Install dependencies:
+## 🔧 Installation & Setup
+
+### Local Development
+
+1. **Clone the repository:**
+   ```bash
+   git clone <your-repo-url>
+   cd water-tools-backend
+   ```
+
+2. **Install dependencies:**
    ```bash
    npm install
    ```
 
-3. Create a `.env` file in the root directory:
-   ```env
-   PORT=3000
-   NODE_ENV=development
-   CORS_ORIGIN=*
-   
-   # Database
-   MONGODB_URI=mongodb://localhost:27017/water-tools
-   
-   # JWT Configuration
-   JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
-   JWT_EXPIRES_IN=7d
+3. **Create environment file:**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your configuration
    ```
 
-4. Make sure MongoDB is running on your system
+4. **Start MongoDB:**
+   ```bash
+   sudo systemctl start mongodb
+   ```
 
-## Running the Application
-
-### Development Mode (with auto-restart)
+5. **Run the application:**
 ```bash
 npm run dev
 ```
 
-### Production Mode
-```bash
-npm start
+### Production Deployment
+
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for complete Hostinger VPS deployment guide.
+
+## 📝 API Usage Examples
+
+### User Registration
+
+```javascript
+const response = await fetch('http://localhost:3000/api/auth/register', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    name: 'John Doe',
+    email: 'john@example.com',
+    password: 'password123'
+  })
+});
+
+const data = await response.json();
+console.log(data);
 ```
 
-The server will start on `http://localhost:3000`
+### User Login
 
-## API Endpoints
+```javascript
+const response = await fetch('http://localhost:3000/api/auth/login', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    email: 'john@example.com',
+    password: 'password123'
+  })
+});
 
-### Authentication Endpoints
-
-#### Register User
-- **POST** `/api/auth/register`
-- **Description**: Register a new user
-- **Access**: Public
-- **Body**:
-  ```json
-  {
-    "username": "johndoe",
-    "email": "john@example.com",
-    "password": "password123",
-    "firstName": "John",
-    "lastName": "Doe"
-  }
-  ```
-- **Response**:
-  ```json
-  {
-    "success": true,
-    "message": "User registered successfully",
-    "data": {
-      "user": {
-        "_id": "...",
-        "username": "johndoe",
-        "email": "john@example.com",
-        "firstName": "John",
-        "lastName": "Doe",
-        "role": "user",
-        "isActive": true,
-        "createdAt": "...",
-        "updatedAt": "..."
-      },
-      "token": "jwt-token-here"
-    }
-  }
-  ```
-
-#### Login User
-- **POST** `/api/auth/login`
-- **Description**: Login user and get JWT token
-- **Access**: Public
-- **Body**:
-  ```json
-  {
-    "email": "john@example.com",
-    "password": "password123"
-  }
-  ```
-- **Response**:
-  ```json
-  {
-    "success": true,
-    "message": "Login successful",
-    "data": {
-      "user": {
-        "_id": "...",
-        "username": "johndoe",
-        "email": "john@example.com",
-        "firstName": "John",
-        "lastName": "Doe",
-        "role": "user",
-        "isActive": true,
-        "lastLogin": "...",
-        "createdAt": "...",
-        "updatedAt": "..."
-      },
-      "token": "jwt-token-here"
-    }
-  }
-  ```
-
-#### Get Current User Profile
-- **GET** `/api/auth/me`
-- **Description**: Get current user profile
-- **Access**: Private (requires JWT token)
-- **Headers**: `Authorization: Bearer <jwt-token>`
-- **Response**:
-  ```json
-  {
-    "success": true,
-    "data": {
-      "user": {
-        "_id": "...",
-        "username": "johndoe",
-        "email": "john@example.com",
-        "firstName": "John",
-        "lastName": "Doe",
-        "role": "user",
-        "isActive": true,
-        "lastLogin": "...",
-        "createdAt": "...",
-        "updatedAt": "..."
-      }
-    }
-  }
-  ```
-
-#### Update User Profile
-- **PUT** `/api/auth/profile`
-- **Description**: Update user profile
-- **Access**: Private (requires JWT token)
-- **Headers**: `Authorization: Bearer <jwt-token>`
-- **Body**:
-  ```json
-  {
-    "firstName": "John",
-    "lastName": "Smith",
-    "username": "johnsmith"
-  }
-  ```
-- **Response**:
-  ```json
-  {
-    "success": true,
-    "message": "Profile updated successfully",
-    "data": {
-      "user": {
-        "_id": "...",
-        "username": "johnsmith",
-        "email": "john@example.com",
-        "firstName": "John",
-        "lastName": "Smith",
-        "role": "user",
-        "isActive": true,
-        "createdAt": "...",
-        "updatedAt": "..."
-      }
-    }
-  }
-  ```
-
-#### Logout User
-- **POST** `/api/auth/logout`
-- **Description**: Logout user (client-side token removal)
-- **Access**: Private (requires JWT token)
-- **Headers**: `Authorization: Bearer <jwt-token>`
-- **Response**:
-  ```json
-  {
-    "success": true,
-    "message": "Logout successful"
-  }
-  ```
-
-### General Endpoints
-
-#### Root Endpoint
-- **GET** `/`
-- **Description**: Welcome message with API information
-- **Access**: Public
-- **Response**:
-  ```json
-  {
-    "success": true,
-    "message": "Welcome to Water Tools Backend API",
-    "version": "1.0.0",
-    "endpoints": {
-      "auth": {
-        "register": "POST /api/auth/register",
-        "login": "POST /api/auth/login",
-        "profile": "GET /api/auth/me",
-        "updateProfile": "PUT /api/auth/profile",
-        "logout": "POST /api/auth/logout"
-      }
-    }
-  }
-  ```
-
-## Authentication
-
-The API uses JWT (JSON Web Tokens) for authentication. Include the token in the Authorization header:
-
-```
-Authorization: Bearer <your-jwt-token>
+const data = await response.json();
+const token = data.data.token;
 ```
 
-## Error Handling
+### Get User Profile
 
-All endpoints return consistent error responses:
+```javascript
+const response = await fetch('http://localhost:3000/api/auth/me', {
+  headers: {
+    'Authorization': `Bearer ${token}`
+  }
+});
 
-```json
-{
-  "success": false,
-  "message": "Error description",
-  "errors": ["Additional error details"] // Optional
-}
+const data = await response.json();
+console.log(data.data.user);
 ```
 
-Common HTTP status codes:
-- `200` - Success
-- `201` - Created
-- `400` - Bad Request
-- `401` - Unauthorized
-- `403` - Forbidden
-- `404` - Not Found
-- `500` - Internal Server Error
+## 🛠️ Technology Stack
 
-## Dependencies
+- **Node.js** - Runtime environment
+- **Express.js** - Web framework
+- **MongoDB** - Database
+- **Mongoose** - ODM for MongoDB
+- **JWT** - Authentication tokens
+- **Bcrypt** - Password hashing
+- **PM2** - Process management (production)
+- **Nginx** - Reverse proxy (production)
 
-- **express**: Web framework
-- **mongoose**: MongoDB object modeling
-- **bcryptjs**: Password hashing
-- **jsonwebtoken**: JWT token handling
-- **cors**: Cross-origin resource sharing
-- **helmet**: Security middleware
-- **morgan**: HTTP request logger
-- **dotenv**: Environment variables
-- **nodemon**: Development auto-restart (dev dependency)
+## 🔒 Security Features
 
-## Testing the API
-
-You can test the API using tools like:
-- **Postman**
-- **curl**
-- **Thunder Client** (VS Code extension)
-- **Insomnia**
-
-### Example curl commands:
-
-#### Register a user:
-```bash
-curl -X POST http://localhost:3000/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "testuser",
-    "email": "test@example.com",
-    "password": "password123",
-    "firstName": "Test",
-    "lastName": "User"
-  }'
-```
-
-#### Login:
-```bash
-curl -X POST http://localhost:3000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "test@example.com",
-    "password": "password123"
-  }'
-```
-
-#### Get profile (replace TOKEN with actual token):
-```bash
-curl -X GET http://localhost:3000/api/auth/me \
-  -H "Authorization: Bearer TOKEN"
-```
-
-## Security Features
-
-- Password hashing with bcryptjs (salt rounds: 12)
-- JWT token expiration (configurable, default: 7 days)
-- Input validation and sanitization
-- CORS protection
+- Password hashing with bcrypt
+- JWT token authentication
+- CORS configuration
+- Input validation
+- Error handling
 - Helmet security headers
-- Account deactivation support
-- Role-based access control
 
-## Next Steps
+## 📊 Project Structure
 
-This project provides a solid foundation for a Node.js/Express.js application with authentication. You can extend it by:
+```
+water-tools-backend/
+├── app.js                 # Main application file
+├── package.json          # Dependencies and scripts
+├── ecosystem.config.js   # PM2 configuration
+├── deploy.sh            # Deployment script
+├── DEPLOYMENT.md        # Deployment guide
+├── controllers/         # Route controllers
+│   └── authController.js
+├── middleware/          # Custom middleware
+│   └── auth.js
+├── models/             # Database models
+│   └── User.js
+├── routes/             # API routes
+│   └── auth.js
+└── logs/               # Application logs
+```
 
-1. **Adding more user roles** and permissions
-2. **Password reset** functionality
-3. **Email verification** for new accounts
-4. **Rate limiting** for API endpoints
-5. **API documentation** with Swagger/OpenAPI
-6. **Unit and integration tests**
-7. **Docker configuration** for deployment
-8. **Additional business logic** for water tools features
+## 🧪 Testing
 
-## License
+Run the test script to verify all endpoints:
 
-ISC# water-tool-backend
+```bash
+node test-api.js
+```
+
+## 🌐 Frontend Integration
+
+This backend is designed to work with any frontend framework (React, Vue, Angular, etc.). Simply make HTTP requests to the API endpoints using your preferred HTTP client (fetch, axios, etc.).
+
+### CORS Configuration
+
+The API is configured to accept requests from your frontend domain. Update the `CORS_ORIGIN` environment variable with your frontend URL.
+
+## 📞 Support
+
+For deployment assistance or questions, refer to the [DEPLOYMENT.md](./DEPLOYMENT.md) guide or check the troubleshooting section.
+
+---
+
+**Ready for production deployment on Hostinger VPS!** 🚀
