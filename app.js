@@ -11,14 +11,34 @@ const PORT = process.env.PORT || 3001;
 // Import routes
 const authRoutes = require('./routes/auth');
 
-// Connect to MongoDB
+// Connect to MongoDB (optimized for serverless/Vercel)
+let cachedConnection = null;
+
 const connectDB = async () => {
+  // Return cached connection if available (for serverless)
+  if (cachedConnection) {
+    return cachedConnection;
+  }
+
   try {
     const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/water-tools';
-    await mongoose.connect(mongoURI);
+    
+    // MongoDB connection options optimized for serverless
+    const options = {
+      maxPoolSize: 1, // Maintain a single connection pool for serverless
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+      bufferCommands: false,
+      bufferMaxEntries: 0,
+    };
+
+    cachedConnection = await mongoose.connect(mongoURI, options);
     console.log('✅ Connected to MongoDB');
+    return cachedConnection;
   } catch (error) {
     console.error('❌ MongoDB connection error:', error.message);
+    cachedConnection = null; // Reset cache on error
+    
     // Don't exit process on Vercel, just log the error
     if (process.env.NODE_ENV !== 'production') {
       console.log('💡 Make sure MongoDB is running on your system');
@@ -26,11 +46,27 @@ const connectDB = async () => {
       console.log('   Or install MongoDB if not installed');
       process.exit(1);
     }
+    throw error;
   }
 };
 
-// Connect to database
-connectDB();
+// Connect to database (only if not on Vercel serverless)
+// On Vercel, connection happens on first request via lazy loading
+if (require.main === module) {
+  connectDB();
+}
+
+// Ensure database connection before handling requests (for serverless)
+app.use(async (req, res, next) => {
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      await connectDB();
+    }
+  } catch (error) {
+    console.error('Database connection failed:', error);
+  }
+  next();
+});
 
 // Security middleware
 app.use(helmet());
@@ -82,7 +118,8 @@ app.get('/', (req, res) => {
     environment: {
       NODE_ENV: process.env.NODE_ENV,
       MONGODB_URI: process.env.MONGODB_URI ? 'Set' : 'Not Set',
-      JWT_SECRET: process.env.JWT_SECRET ? 'Set' : 'Not Set',
+      JWT_ACCESS_SECRET: process.env.JWT_ACCESS_SECRET ? 'Set' : 'Not Set',
+      JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET ? 'Set' : 'Not Set',
       CORS_ORIGIN: process.env.CORS_ORIGIN || 'Not Set'
     },
     endpoints: {
