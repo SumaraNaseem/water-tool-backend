@@ -107,7 +107,7 @@ app.use(express.static('public'));
 
 // Routes
 app.use('/api/auth', authRoutes);
-
+console.log('Auth routes loaded');
 // Root endpoint
 app.get('/', (req, res) => {
   res.json({
