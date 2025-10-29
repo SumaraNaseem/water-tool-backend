@@ -2,96 +2,127 @@ const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 
+const dataDir = path.join(__dirname, 'data');
+const usersFile = path.join(dataDir, 'users.json');
+
+// Ensure data directory exists
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
+}
+
+// Initialize users file if it doesn't exist
+if (!fs.existsSync(usersFile)) {
+  fs.writeFileSync(usersFile, JSON.stringify([], null, 2));
+}
+
 class Database {
-  constructor() {
-    this.usersFile = path.join(__dirname, 'users.json');
-    this.loadUsers();
-  }
-
-  loadUsers() {
+  static readUsers() {
     try {
-      const data = fs.readFileSync(this.usersFile, 'utf8');
-      this.users = JSON.parse(data).users || [];
+      const data = fs.readFileSync(usersFile, 'utf8');
+      return JSON.parse(data);
     } catch (error) {
-      this.users = [];
-      this.saveUsers();
+      console.error('Error reading users:', error);
+      return [];
     }
   }
 
-  saveUsers() {
-    fs.writeFileSync(this.usersFile, JSON.stringify({ users: this.users }, null, 2));
+  static writeUsers(users) {
+    try {
+      fs.writeFileSync(usersFile, JSON.stringify(users, null, 2));
+      return true;
+    } catch (error) {
+      console.error('Error writing users:', error);
+      return false;
+    }
   }
 
-  findUserByEmail(email) {
-    return this.users.find(user => user.email === email);
+  static async findUserByEmail(email) {
+    const users = this.readUsers();
+    return users.find(user => user.email === email);
   }
 
-  findUserById(id) {
-    return this.users.find(user => user.id === id);
+  static async findUserById(id) {
+    const users = this.readUsers();
+    return users.find(user => user.id === id);
   }
 
-  async createUser(userData) {
+  static async createUser(userData) {
+    const users = this.readUsers();
+    
+    // Check if user already exists
+    if (await this.findUserByEmail(userData.email)) {
+      throw new Error('User already exists');
+    }
+
     // Hash password
-    const salt = await bcrypt.genSalt(12);
-    const hashedPassword = await bcrypt.hash(userData.password, salt);
+    const hashedPassword = await bcrypt.hash(userData.password, 12);
     
-    const user = {
+    const newUser = {
       id: Date.now().toString(),
-      ...userData,
+      name: userData.name,
+      email: userData.email,
       password: hashedPassword,
+      role: 'user',
       createdAt: new Date().toISOString(),
-      lastLogin: null,
-      isActive: true,
-      role: 'user'
+      updatedAt: new Date().toISOString()
     };
+
+    users.push(newUser);
     
-    this.users.push(user);
-    this.saveUsers();
-    
-    // Return user without password
-    const { password, ...userWithoutPassword } = user;
-    return userWithoutPassword;
+    if (this.writeUsers(users)) {
+      return {
+        id: newUser.id,
+        name: newUser.name,
+        email: newUser.email,
+        role: newUser.role,
+        createdAt: newUser.createdAt,
+        updatedAt: newUser.updatedAt
+      };
+    } else {
+      throw new Error('Failed to save user');
+    }
   }
 
-  async updateUser(id, updateData) {
-    const userIndex = this.users.findIndex(user => user.id === id);
+  static async comparePassword(plainPassword, hashedPassword) {
+    return await bcrypt.compare(plainPassword, hashedPassword);
+  }
+
+  static async updateLastLogin(userId) {
+    const users = this.readUsers();
+    const userIndex = users.findIndex(user => user.id === userId);
+    
     if (userIndex !== -1) {
-      // If password is being updated, hash it
-      if (updateData.password) {
-        const salt = await bcrypt.genSalt(12);
-        updateData.password = await bcrypt.hash(updateData.password, salt);
+      users[userIndex].lastLogin = new Date().toISOString();
+      users[userIndex].updatedAt = new Date().toISOString();
+      this.writeUsers(users);
+    }
+  }
+
+  static async updateUser(userId, updateData) {
+    const users = this.readUsers();
+    const userIndex = users.findIndex(user => user.id === userId);
+    
+    if (userIndex !== -1) {
+      users[userIndex] = {
+        ...users[userIndex],
+        ...updateData,
+        updatedAt: new Date().toISOString()
+      };
+      
+      if (this.writeUsers(users)) {
+        return {
+          id: users[userIndex].id,
+          name: users[userIndex].name,
+          email: users[userIndex].email,
+          role: users[userIndex].role,
+          createdAt: users[userIndex].createdAt,
+          updatedAt: users[userIndex].updatedAt
+        };
       }
-      
-      this.users[userIndex] = { ...this.users[userIndex], ...updateData };
-      this.saveUsers();
-      
-      // Return user without password
-      const { password, ...userWithoutPassword } = this.users[userIndex];
-      return userWithoutPassword;
     }
-    return null;
-  }
-
-  async comparePassword(email, password) {
-    const user = this.findUserByEmail(email);
-    if (!user) return false;
     
-    // Find user with password from database
-    const userWithPassword = this.users.find(u => u.id === user.id);
-    if (!userWithPassword) return false;
-    
-    return await bcrypt.compare(password, userWithPassword.password);
-  }
-
-  async updateLastLogin(id) {
-    const userIndex = this.users.findIndex(user => user.id === id);
-    if (userIndex !== -1) {
-      this.users[userIndex].lastLogin = new Date().toISOString();
-      this.saveUsers();
-      return this.users[userIndex];
-    }
-    return null;
+    throw new Error('User not found or update failed');
   }
 }
 
-module.exports = new Database();
+module.exports = Database;

@@ -46,7 +46,18 @@ const userSchema = new mongoose.Schema({
   },
   lastLogin: {
     type: Date
-  }
+  },
+  refreshTokens: [{
+    token: {
+      type: String,
+      required: true
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now,
+      expires: 604800 // 7 days in seconds
+    }
+  }]
 }, {
   timestamps: true
 });
@@ -71,10 +82,29 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
+// Add refresh token method
+userSchema.methods.addRefreshToken = function(token) {
+  this.refreshTokens.push({ token });
+  return this.save();
+};
+
+// Remove refresh token method
+userSchema.methods.removeRefreshToken = function(token) {
+  this.refreshTokens = this.refreshTokens.filter(rt => rt.token !== token);
+  return this.save();
+};
+
+// Remove all refresh tokens method
+userSchema.methods.removeAllRefreshTokens = function() {
+  this.refreshTokens = [];
+  return this.save();
+};
+
 // Remove password from JSON output
 userSchema.methods.toJSON = function() {
   const userObject = this.toObject();
   delete userObject.password;
+  delete userObject.refreshTokens;
   return userObject;
 };
 

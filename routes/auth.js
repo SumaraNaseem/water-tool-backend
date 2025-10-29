@@ -1,12 +1,13 @@
 const express = require('express');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, verifyRefreshToken } = require('../middleware/auth');
 const {
   validateRegistrationInput,
   registerUser,
   loginUser,
   getCurrentUser,
   updateProfile,
-  logoutUser
+  logoutUser,
+  refreshToken
 } = require('../controllers/authController');
 
 const router = express.Router();
@@ -35,5 +36,10 @@ router.put('/profile', authenticateToken, updateProfile);
 // @desc    Logout user (client-side token removal)
 // @access  Private
 router.post('/logout', authenticateToken, logoutUser);
+
+// @route   POST /api/auth/refresh
+// @desc    Refresh access token using refresh token
+// @access  Public
+router.post('/refresh', verifyRefreshToken, refreshToken);
 
 module.exports = router;

@@ -1,5 +1,5 @@
 const User = require('../models/User');
-const { generateToken } = require('../middleware/auth');
+const { generateTokens } = require('../middleware/auth');
 
 // Input validation helper
 const validateRegistrationInput = (req, res, next) => {
@@ -84,8 +84,11 @@ const registerUser = async (req, res) => {
 
     await user.save();
 
-    // Generate token
-    const token = generateToken(user._id);
+    // Generate tokens
+    const { accessToken, refreshToken } = generateTokens(user._id);
+    
+    // Save refresh token to user
+    await user.addRefreshToken(refreshToken);
 
     res.status(201).json({
       success: true,
@@ -100,7 +103,8 @@ const registerUser = async (req, res) => {
           role: user.role,
           createdAt: user.createdAt
         },
-        token
+        accessToken,
+        refreshToken
       }
     });
 
@@ -172,11 +176,13 @@ const loginUser = async (req, res) => {
     }
 
     // Update last login
-    user.lastLogin = new Date();
-    await user.save();
+    await User.findByIdAndUpdate(user._id, { lastLogin: new Date() });
 
-    // Generate token
-    const token = generateToken(user._id);
+    // Generate tokens
+    const { accessToken, refreshToken } = generateTokens(user._id);
+    
+    // Save refresh token to user
+    await user.addRefreshToken(refreshToken);
 
     res.json({
       success: true,
@@ -192,7 +198,8 @@ const loginUser = async (req, res) => {
           lastLogin: user.lastLogin,
           createdAt: user.createdAt
         },
-        token
+        accessToken,
+        refreshToken
       }
     });
 
@@ -319,12 +326,65 @@ const updateProfile = async (req, res) => {
 // @desc    Logout user
 // @route   POST /api/auth/logout
 // @access  Private
-const logoutUser = (req, res) => {
-  res.json({
-    success: true,
-    message: 'Logout successful',
-    message_sv: 'Utloggning lyckades'
-  });
+const logoutUser = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+    
+    if (refreshToken) {
+      // Remove specific refresh token
+      await req.user.removeRefreshToken(refreshToken);
+    } else {
+      // Remove all refresh tokens
+      await req.user.removeAllRefreshTokens();
+    }
+
+    res.json({
+      success: true,
+      message: 'Logout successful',
+      message_sv: 'Utloggning lyckades'
+    });
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      message_sv: 'Internt serverfel'
+    });
+  }
+};
+
+// @desc    Refresh access token
+// @route   POST /api/auth/refresh
+// @access  Public
+const refreshToken = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+    const user = req.user;
+
+    // Generate new tokens
+    const { accessToken, refreshToken: newRefreshToken } = generateTokens(user._id);
+    
+    // Remove old refresh token and add new one
+    await user.removeRefreshToken(refreshToken);
+    await user.addRefreshToken(newRefreshToken);
+
+    res.json({
+      success: true,
+      message: 'Token refreshed successfully',
+      message_sv: 'Token uppdaterad framgångsrikt',
+      data: {
+        accessToken,
+        refreshToken: newRefreshToken
+      }
+    });
+  } catch (error) {
+    console.error('Refresh token error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      message_sv: 'Internt serverfel'
+    });
+  }
 };
 
 module.exports = {
@@ -333,5 +393,6 @@ module.exports = {
   loginUser,
   getCurrentUser,
   updateProfile,
-  logoutUser
+  logoutUser,
+  refreshToken
 };
