@@ -159,6 +159,54 @@ app.use(express.static('public'));
 // Routes
 app.use('/api/auth', authRoutes);
 console.log('Auth routes loaded');
+
+// Test MongoDB connection endpoint (for debugging)
+app.get('/api/test-db', async (req, res) => {
+  try {
+    const isConnected = mongoose.connection.readyState === 1;
+    
+    if (!isConnected) {
+      console.log('Attempting to connect...');
+      await connectDB();
+    }
+    
+    // Try a simple operation
+    const User = require('./models/User');
+    const count = await User.countDocuments();
+    
+    res.json({
+      success: true,
+      message: 'Database connection successful',
+      connectionState: mongoose.connection.readyState,
+      connectionStateName: {
+        0: 'disconnected',
+        1: 'connected',
+        2: 'connecting',
+        3: 'disconnecting'
+      }[mongoose.connection.readyState],
+      userCount: count,
+      database: mongoose.connection.db?.databaseName,
+      mongoDBUri: process.env.MONGODB_URI ? 'Set' : 'Not Set'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Database connection test failed',
+      error: error.message,
+      errorName: error.name,
+      errorCode: error.code,
+      mongoDBUri: process.env.MONGODB_URI ? 'Set' : 'Not Set',
+      hint: !process.env.MONGODB_URI 
+        ? 'MONGODB_URI environment variable is not set in Vercel'
+        : error.message?.includes('authentication') 
+          ? 'Check MongoDB Atlas username and password in connection string'
+          : error.message?.includes('ENOTFOUND') || error.message?.includes('DNS')
+            ? 'Check MongoDB Atlas Network Access - allow Vercel IPs (0.0.0.0/0)'
+            : 'Check MongoDB Atlas connection string format and cluster status'
+    });
+  }
+});
+
 // Root endpoint
 app.get('/', (req, res) => {
   res.json({
