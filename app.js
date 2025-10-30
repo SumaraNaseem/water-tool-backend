@@ -16,27 +16,41 @@ let cachedConnection = null;
 
 const connectDB = async () => {
   // Return cached connection if available (for serverless)
-  if (cachedConnection) {
+  if (cachedConnection && mongoose.connection.readyState === 1) {
     return cachedConnection;
   }
 
   try {
-    const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/water-tools';
+    const mongoURI = process.env.MONGODB_URI;
     
-    // MongoDB connection options optimized for serverless
+    if (!mongoURI) {
+      throw new Error('MONGODB_URI environment variable is not set');
+    }
+
+    console.log('Attempting MongoDB connection...');
+    console.log('MongoDB URI present:', mongoURI ? 'Yes (hidden)' : 'No');
+    
+    // MongoDB connection options optimized for serverless/Vercel
     const options = {
       maxPoolSize: 1, // Maintain a single connection pool for serverless
-      serverSelectionTimeoutMS: 5000,
+      serverSelectionTimeoutMS: 10000, // Increased timeout for Vercel
       socketTimeoutMS: 45000,
+      connectTimeoutMS: 10000,
       bufferCommands: false,
       bufferMaxEntries: 0,
+      // Retry connection settings
+      retryWrites: true,
+      w: 'majority',
     };
 
     cachedConnection = await mongoose.connect(mongoURI, options);
     console.log('✅ Connected to MongoDB');
+    console.log('Database name:', mongoose.connection.db?.databaseName);
     return cachedConnection;
   } catch (error) {
     console.error('❌ MongoDB connection error:', error.message);
+    console.error('Error code:', error.code);
+    console.error('Error name:', error.name);
     cachedConnection = null; // Reset cache on error
     
     // Don't exit process on Vercel, just log the error
@@ -104,10 +118,28 @@ app.use(async (req, res, next) => {
       }
     } catch (error) {
       console.error('Database connection failed:', error);
+      console.error('MongoDB URI:', process.env.MONGODB_URI ? 'Set (hidden)' : 'NOT SET');
+      console.error('Error details:', {
+        name: error.name,
+        message: error.message,
+        code: error.code
+      });
+      
+      // Return detailed error for debugging
       return res.status(500).json({
         success: false,
         message: 'Database connection failed',
-        error: process.env.NODE_ENV !== 'production' ? error.message : undefined
+        error: error.message || 'Unknown database error',
+        errorName: error.name || 'DatabaseError',
+        errorCode: error.code,
+        // Include helpful hints
+        hint: !process.env.MONGODB_URI 
+          ? 'MONGODB_URI environment variable is not set'
+          : error.message?.includes('authentication') 
+            ? 'Check MongoDB Atlas credentials and user permissions'
+            : error.message?.includes('ENOTFOUND') || error.message?.includes('DNS')
+              ? 'Check MongoDB Atlas network access - Vercel IPs might not be allowed'
+              : 'Check MongoDB Atlas connection string and cluster status'
       });
     }
   }
