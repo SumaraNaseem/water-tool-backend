@@ -75,10 +75,9 @@ const explicitAllowedOrigins = [
   process.env.CORS_ORIGIN,
   'http://localhost:5173',
   'http://localhost:3000',
-  'https://water-tool-frontend-2tyw.vercel.app',
+  'https://water-tool-frontend.vercel.app',
   'https://water-tool-frontend-atgm.vercel.app',
-  'https://water-tool-frontend-2tyw.vercel.app',
-  'https://water-tool-backend-sbo7.vercel.app/'
+
 
 ].filter(Boolean);
 
