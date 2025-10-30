@@ -111,6 +111,8 @@ const registerUser = async (req, res) => {
   } catch (error) {
     console.error('Registration error:', error);
     console.error('Error stack:', error.stack);
+    console.error('Error name:', error.name);
+    console.error('Error message:', error.message);
     
     if (error.name === 'ValidationError') {
       const errors = Object.values(error.errors).map(err => err.message);
@@ -122,18 +124,16 @@ const registerUser = async (req, res) => {
       });
     }
 
-    // Include error details in development
+    // Always include error details for debugging (can be removed later)
     const errorResponse = {
       success: false,
       message: 'Internal server error',
-      message_sv: 'Internt serverfel'
+      message_sv: 'Internt serverfel',
+      error: error.message || 'Unknown error',
+      errorName: error.name || 'Error',
+      // Include stack in non-production
+      stack: process.env.NODE_ENV !== 'production' ? error.stack : undefined
     };
-
-    // Add error details in non-production or if it's a MongoDB/JWT error
-    if (process.env.NODE_ENV !== 'production' || error.name === 'MongoServerError' || error.name === 'MongoError' || error.message?.includes('JWT')) {
-      errorResponse.error = error.message;
-      errorResponse.errorName = error.name;
-    }
 
     res.status(500).json(errorResponse);
   }
