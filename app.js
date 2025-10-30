@@ -71,8 +71,26 @@ if (require.main === module) {
 }
 
 // CORS middleware - MUST be before other middleware to handle preflight requests
+const explicitAllowedOrigins = [
+  process.env.CORS_ORIGIN,
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'https://water-tool-frontend-2tyw.vercel.app',
+  'https://water-tool-frontend-atgm.vercel.app'
+].filter(Boolean);
+
 app.use(cors({
-  origin: true, // Allow all origins
+  origin: (origin, callback) => {
+    // Allow non-browser requests (no origin)
+    if (!origin) return callback(null, true);
+
+    // Allow any Vercel frontend subdomain and explicit allowlist
+    const isVercel = /\.vercel\.app$/i.test(origin);
+    if (isVercel || explicitAllowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`Not allowed by CORS: ${origin}`));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Origin', 'Accept'],
