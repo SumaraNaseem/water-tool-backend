@@ -56,18 +56,54 @@ if (require.main === module) {
   connectDB();
 }
 
-// Ensure database connection before handling requests (for serverless)
+// CORS middleware - MUST be before other middleware to handle preflight requests
+app.use(cors({
+  origin: true, // Allow all origins
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Origin', 'Accept'],
+  optionsSuccessStatus: 200,
+  preflightContinue: false
+}));
+
+// Handle preflight OPTIONS requests BEFORE database connection
+app.options('*', (req, res) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Origin, Accept');
+  res.status(200).end();
+});
+
+// Security middleware
+app.use(helmet());
+
+// Additional CORS headers for all responses
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Origin, Accept');
+  next();
+});
+
+// Ensure database connection before handling API requests (skip for OPTIONS)
 app.use(async (req, res, next) => {
-  try {
-    if (mongoose.connection.readyState !== 1) {
-      console.log('Database not connected, attempting connection...');
-      await connectDB();
-      console.log('Database connection established');
-    }
-  } catch (error) {
-    console.error('Database connection failed:', error);
-    // For API routes, return error instead of continuing
-    if (req.path.startsWith('/api/')) {
+  // Skip database connection for OPTIONS requests
+  if (req.method === 'OPTIONS') {
+    return next();
+  }
+  
+  // Only connect for API routes that need database
+  if (req.path.startsWith('/api/')) {
+    try {
+      if (mongoose.connection.readyState !== 1) {
+        console.log('Database not connected, attempting connection...');
+        await connectDB();
+        console.log('Database connection established');
+      }
+    } catch (error) {
+      console.error('Database connection failed:', error);
       return res.status(500).json({
         success: false,
         message: 'Database connection failed',
@@ -76,33 +112,6 @@ app.use(async (req, res, next) => {
     }
   }
   next();
-});
-
-// Security middleware
-app.use(helmet());
-
-// CORS middleware - More permissive for development
-app.use(cors({
-  origin: true, // Allow all origins in development
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Origin', 'Accept'],
-  optionsSuccessStatus: 200,
-  preflightContinue: false
-}));
-
-// Additional CORS headers for all responses
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Origin, Accept');
-  next();
-});
-
-// Handle preflight requests
-app.options('*', (req, res) => {
-  res.status(200).end();
 });
 
 // Logging middleware
