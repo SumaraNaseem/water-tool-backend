@@ -3,6 +3,9 @@ const User = require('../models/User');
 
 // Generate Access Token (short-lived)
 const generateAccessToken = (userId) => {
+  if (!process.env.JWT_ACCESS_SECRET) {
+    throw new Error('JWT_ACCESS_SECRET is not set in environment variables');
+  }
   return jwt.sign({ userId }, process.env.JWT_ACCESS_SECRET, {
     expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '15m'
   });
@@ -10,6 +13,9 @@ const generateAccessToken = (userId) => {
 
 // Generate Refresh Token (long-lived)
 const generateRefreshToken = (userId) => {
+  if (!process.env.JWT_REFRESH_SECRET) {
+    throw new Error('JWT_REFRESH_SECRET is not set in environment variables');
+  }
   return jwt.sign({ userId }, process.env.JWT_REFRESH_SECRET, {
     expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d'
   });
@@ -17,10 +23,15 @@ const generateRefreshToken = (userId) => {
 
 // Generate both tokens
 const generateTokens = (userId) => {
-  return {
-    accessToken: generateAccessToken(userId),
-    refreshToken: generateRefreshToken(userId)
-  };
+  try {
+    return {
+      accessToken: generateAccessToken(userId),
+      refreshToken: generateRefreshToken(userId)
+    };
+  } catch (error) {
+    console.error('Token generation error:', error);
+    throw error;
+  }
 };
 
 // Authentication middleware

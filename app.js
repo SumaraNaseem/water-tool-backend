@@ -60,10 +60,20 @@ if (require.main === module) {
 app.use(async (req, res, next) => {
   try {
     if (mongoose.connection.readyState !== 1) {
+      console.log('Database not connected, attempting connection...');
       await connectDB();
+      console.log('Database connection established');
     }
   } catch (error) {
     console.error('Database connection failed:', error);
+    // For API routes, return error instead of continuing
+    if (req.path.startsWith('/api/')) {
+      return res.status(500).json({
+        success: false,
+        message: 'Database connection failed',
+        error: process.env.NODE_ENV !== 'production' ? error.message : undefined
+      });
+    }
   }
   next();
 });

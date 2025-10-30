@@ -110,6 +110,7 @@ const registerUser = async (req, res) => {
 
   } catch (error) {
     console.error('Registration error:', error);
+    console.error('Error stack:', error.stack);
     
     if (error.name === 'ValidationError') {
       const errors = Object.values(error.errors).map(err => err.message);
@@ -121,11 +122,20 @@ const registerUser = async (req, res) => {
       });
     }
 
-    res.status(500).json({
+    // Include error details in development
+    const errorResponse = {
       success: false,
       message: 'Internal server error',
       message_sv: 'Internt serverfel'
-    });
+    };
+
+    // Add error details in non-production or if it's a MongoDB/JWT error
+    if (process.env.NODE_ENV !== 'production' || error.name === 'MongoServerError' || error.name === 'MongoError' || error.message?.includes('JWT')) {
+      errorResponse.error = error.message;
+      errorResponse.errorName = error.name;
+    }
+
+    res.status(500).json(errorResponse);
   }
 };
 
@@ -174,7 +184,7 @@ const loginUser = async (req, res) => {
         message_sv: 'Ogiltig e-postadress eller lösenord'
       });
     }
-
+console.log('Login successful');
     // Update last login
     await User.findByIdAndUpdate(user._id, { lastLogin: new Date() });
 
