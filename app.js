@@ -37,8 +37,7 @@ const connectDB = async () => {
       socketTimeoutMS: 45000,
       connectTimeoutMS: 10000,
       bufferCommands: false,
-      bufferMaxEntries: 0,
-      // Retry connection settings
+      // Retry connection settings (these are respected when present in URI too)
       retryWrites: true,
       w: 'majority',
     };
